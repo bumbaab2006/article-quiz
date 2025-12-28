@@ -1,35 +1,30 @@
 import { NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server"; // getAuth биш auth-ийг импортлоно
 import prisma from "@/lib/prisma";
 
-export async function GET(req: Request) {
+export async function GET() {
+  // req параметр энд заавал хэрэггүй
   try {
-    const { userId } = getAuth(req);
+    const { userId } = await auth(); // await auth() ашиглана
+
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    // Clerk user → Prisma user
-    const dbUser = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
-
-    if (!dbUser) {
-      return NextResponse.json([], { status: 200 });
-    }
-
     const articles = await prisma.article.findMany({
-      where: { userId: dbUser.id },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        title: true,
+      where: {
+        user: {
+          clerkId: userId,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
       },
     });
 
     return NextResponse.json(articles);
-  } catch (err) {
-    console.error("MY ARTICLES ERROR:", err);
-    return new NextResponse("Server error", { status: 500 });
+  } catch (error) {
+    console.error("MY_ARTICLES_ERROR", error);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 }

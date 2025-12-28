@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
-import { getAuth } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server"; // getAuth биш auth
 import prisma from "@/lib/prisma";
 import { genAI } from "@/lib/gemini";
 
 export async function POST(req: Request) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+    // 1. auth() функцийг await хийж ашиглана
+    const { userId } = await auth();
+
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     const { title, content, maxLength = 150 } = await req.json();
-    if (!title || !content)
+    if (!title || !content) {
       return new NextResponse("Missing fields", { status: 400 });
+    }
 
     const dbUser = await prisma.user.findUnique({
       where: { clerkId: userId },
@@ -20,12 +25,13 @@ export async function POST(req: Request) {
       return new NextResponse("User not synced", { status: 409 });
     }
 
+    // 2. Моделийн нэрийг шалгах (gemini-1.5-flash эсвэл gemini-2.0-flash-exp)
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
     });
 
     const result = await model.generateContent(
-      `Доорх нийтлэлийг ${maxLength} үгнээс хэтрэхгүйгээр хураангуйла:\n\n${content}`
+      `Доорх нийтлэлийг ${maxLength} үгнээс хэтрэхгүйгээр хураангуйлж бич:\n\n${content}`
     );
 
     const summary = result.response.text();
