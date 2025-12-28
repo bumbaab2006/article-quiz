@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     // 2. Моделийн нэрийг шалгах (gemini-1.5-flash эсвэл gemini-2.0-flash-exp)
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
     });
 
     const result = await model.generateContent(
