@@ -14,7 +14,10 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isQuizLoading, setIsQuizLoading] = useState(false);
 
-  // 1. Нийтлэлийг хураангуйлах функц
+  // Email states
+  const [userEmail, setUserEmail] = useState("");
+  const [isEmailSending, setIsEmailSending] = useState(false);
+
   const generateSummary = async () => {
     setIsLoading(true);
     try {
@@ -24,13 +27,11 @@ export default function DashboardPage() {
         body: JSON.stringify({ title, content }),
       });
 
-      if (!res.ok) {
-        throw new Error("Хураангуй үүсгэхэд алдаа гарлаа");
-      }
+      if (!res.ok) throw new Error("Хураангуй үүсгэхэд алдаа гарлаа");
 
       const data = await res.json();
       setSummary(data.summary);
-      setArticleId(data.id); // Дараа нь quiz үүсгэхэд хэрэгтэй
+      setArticleId(data.id);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Алдаа гарлаа");
     } finally {
@@ -38,10 +39,34 @@ export default function DashboardPage() {
     }
   };
 
-  // 2. Quiz үүсгэж, quiz хуудас руу шилжих функц
+  const handleSendEmail = async () => {
+    if (!userEmail) return alert("Имэйл хаягаа оруулна уу");
+    setIsEmailSending(true);
+    try {
+      const res = await fetch(
+        "https://bumbayar.app.n8n.cloud/webhook-test/send-email",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: userEmail,
+            summary: summary,
+            title: title,
+          }),
+        }
+      );
+      if (res.ok) alert("Имэйл амжилттай илгээгдлээ!");
+      else alert("Илгээхэд алдаа гарлаа");
+    } catch (err) {
+      console.error(err);
+      alert("Холболтын алдаа гарлаа");
+    } finally {
+      setIsEmailSending(false);
+    }
+  };
+
   const handleTakeQuiz = async () => {
     if (!articleId) return;
-
     setIsQuizLoading(true);
     try {
       const res = await fetch("/api/quizzes", {
@@ -49,13 +74,8 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ articleId }),
       });
-
-      if (!res.ok) {
-        throw new Error("Quiz үүсгэхэд алдаа гарлаа");
-      }
-
+      if (!res.ok) throw new Error("Quiz үүсгэхэд алдаа гарлаа");
       const quizData = await res.json();
-      // Quiz амжилттай үүссэн бол динамик route руу шилжинэ
       router.push(`/dashboard/quiz/${quizData.id}`);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Алдаа гарлаа");
@@ -66,7 +86,6 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* Оруулах хэсэг */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
         <h2 className="font-semibold text-lg mb-1 flex items-center gap-2 text-gray-500">
           ✨ AI Article Assistant
@@ -84,12 +103,10 @@ export default function DashboardPage() {
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 w-full border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 
-                 text-gray-500 font-medium placeholder:text-gray-400" // Текст: хар саарал, Placeholder: цайвар саарал
+              className="mt-1 w-full border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 text-gray-500 font-medium placeholder:text-gray-400"
               placeholder="Нийтлэлийн гарчиг..."
             />
           </div>
-
           <div>
             <label className="text-xs font-medium text-gray-700 uppercase tracking-wider">
               Агуулга
@@ -98,8 +115,7 @@ export default function DashboardPage() {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={8}
-              className="mt-1 w-full border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 
-                 text-gray-500 placeholder:text-gray-400 leading-relaxed" // Текст: дунд зэргийн саарал, Placeholder: маш цайвар
+              className="mt-1 w-full border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 text-gray-500 placeholder:text-gray-400 leading-relaxed"
               placeholder="Энд текстээ хуулна уу..."
             />
           </div>
@@ -112,10 +128,7 @@ export default function DashboardPage() {
             className="bg-black text-white text-sm font-medium px-6 py-2.5 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-all flex items-center gap-2"
           >
             {isLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Уншиж байна...
-              </>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               "Хураангуй үүсгэх"
             )}
@@ -123,7 +136,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Хураангуй харуулах хэсэг */}
       {summary && (
         <div className="bg-white rounded-xl shadow-sm p-6 mt-6 border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex justify-between items-start mb-4">
@@ -137,7 +149,30 @@ export default function DashboardPage() {
             "{summary}"
           </p>
 
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-50">
+          {/* Email section - UI consistent with the input area */}
+          <div className="mt-8 pt-6 border-t border-gray-50">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-3">
+              Хураангуйг имэйлээр авах
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                placeholder="Имэйл хаяг..."
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                className="flex-1 border border-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black/5 text-gray-500"
+              />
+              <button
+                onClick={handleSendEmail}
+                disabled={isEmailSending}
+                className="bg-gray-100 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-gray-200 disabled:opacity-50 transition-colors"
+              >
+                {isEmailSending ? "..." : "Илгээх"}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-50">
             <p className="text-xs text-gray-400">
               Одоо энэ хураангуй дээр суурилсан тест өгөх үү?
             </p>
