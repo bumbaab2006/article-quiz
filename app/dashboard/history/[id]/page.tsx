@@ -27,7 +27,7 @@ export default function HistoryDetailPage() {
     setIsEmailSending(true);
     try {
       const res = await fetch(
-        "https://bumbayar.app.n8n.cloud/webhook-test/send-email",
+        "https://bumbayar.app.n8n.cloud/webhook/send-email",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
