@@ -54,6 +54,10 @@ export default function HistoryDetailPage() {
 
   const handleSendEmail = async () => {
     if (!userEmail) return alert("Имэйл хаягаа оруулна уу");
+    if (!data) return alert("Нийтлэлийн мэдээлэл ачаалагдаж дуусаагүй байна");
+
+    const { summary, title } = data;
+
     setIsEmailSending(true);
     try {
       const res = await fetch("/api/email", {
@@ -61,8 +65,8 @@ export default function HistoryDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: userEmail,
-          summary: data.summary,
-          title: data.title,
+          summary,
+          title,
         }),
       });
 
