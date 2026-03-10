@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useHistoryRefresh } from "@/components/history-refresh-context";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { refreshHistory } = useHistoryRefresh();
 
   // States
   const [title, setTitle] = useState("");
@@ -32,6 +34,7 @@ export default function DashboardPage() {
       const data = await res.json();
       setSummary(data.summary);
       setArticleId(data.id);
+      refreshHistory();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Алдаа гарлаа");
     } finally {
@@ -43,23 +46,35 @@ export default function DashboardPage() {
     if (!userEmail) return alert("Имэйл хаягаа оруулна уу");
     setIsEmailSending(true);
     try {
-      const res = await fetch(
-        "https://bumbayar.app.n8n.cloud/webhook/send-email",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: userEmail,
-            summary: summary,
-            title: title,
-          }),
-        }
-      );
-      if (res.ok) alert("Имэйл амжилттай илгээгдлээ!");
-      else alert("Илгээхэд алдаа гарлаа");
+      const res = await fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          summary,
+          title,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = (await res.json().catch(() => null)) as
+          | { error?: string; missingKeys?: string[] }
+          | null;
+
+        const details =
+          errorData?.missingKeys && errorData.missingKeys.length > 0
+            ? `: ${errorData.missingKeys.join(", ")}`
+            : "";
+
+        throw new Error(
+          `${errorData?.error ?? "Илгээхэд алдаа гарлаа"}${details}`
+        );
+      }
+
+      alert("Имэйл амжилттай илгээгдлээ!");
     } catch (err) {
       console.error(err);
-      alert("Холболтын алдаа гарлаа");
+      alert(err instanceof Error ? err.message : "Холболтын алдаа гарлаа");
     } finally {
       setIsEmailSending(false);
     }
@@ -146,7 +161,7 @@ export default function DashboardPage() {
           </div>
 
           <p className="text-sm text-gray-600 leading-relaxed italic">
-            "{summary}"
+            &quot;{summary}&quot;
           </p>
 
           {/* Email section - UI consistent with the input area */}

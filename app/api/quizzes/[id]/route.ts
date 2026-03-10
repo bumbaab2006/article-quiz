@@ -4,18 +4,29 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   req: Request,
-  // Params-ийг Promise гэж тодорхойлно
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
     if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
-    // ЭНД: params-ийг await хийж задлах ёстой
     const { id } = await params;
 
-    const quiz = await prisma.quiz.findUnique({
-      where: { id: id }, // Одоо id нь undefined биш болсон
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    if (!dbUser) {
+      return new NextResponse("User not found", { status: 404 });
+    }
+
+    const quiz = await prisma.quiz.findFirst({
+      where: {
+        id,
+        article: {
+          userId: dbUser.id,
+        },
+      },
       include: { article: true },
     });
 

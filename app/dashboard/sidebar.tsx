@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useHistoryRefresh } from "@/components/history-refresh-context";
 
 type Article = {
   id: string;
@@ -10,13 +11,46 @@ type Article = {
 
 export default function Sidebar() {
   const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { version } = useHistoryRefresh();
 
   useEffect(() => {
-    fetch("/api/my-articles")
-      .then((r) => r.json())
-      .then(setArticles)
-      .catch((err) => console.error("Error fetching articles:", err));
-  }, []);
+    let isCancelled = false;
+
+    const loadArticles = async () => {
+      setIsLoading(true);
+
+      try {
+        const response = await fetch("/api/my-articles", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch articles");
+        }
+
+        const data = (await response.json()) as Article[];
+
+        if (!isCancelled) {
+          setArticles(data);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          console.error("Error fetching articles:", error);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadArticles();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [version]);
 
   return (
     <aside className="w-64 bg-white border-r p-4 flex flex-col">
@@ -31,7 +65,9 @@ export default function Sidebar() {
       </h2>
 
       <div className="space-y-1 overflow-y-auto">
-        {articles.length === 0 ? (
+        {isLoading ? (
+          <p className="text-xs text-gray-400 px-2 italic">Түүх ачаалж байна</p>
+        ) : articles.length === 0 ? (
           <p className="text-xs text-gray-400 px-2 italic ">
             Түүх хоосон байна
           </p>
@@ -39,7 +75,7 @@ export default function Sidebar() {
           articles.map((a) => (
             <Link
               key={a.id}
-              href={`/dashboard/history/${a.id}`} // Энэ хуудсыг дараа нь хийж болно
+              href={`/dashboard/history/${a.id}`}
               className="block w-full text-left text-sm px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors truncate text-gray-500"
             >
               {a.title}

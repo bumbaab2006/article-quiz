@@ -16,12 +16,25 @@ export async function POST(req: Request) {
 
     if (!dbUser) return new NextResponse("User not found", { status: 404 });
 
+    const quiz = await prisma.quiz.findFirst({
+      where: {
+        id: quizId,
+        article: {
+          userId: dbUser.id,
+        },
+      },
+    });
+
+    if (!quiz) {
+      return new NextResponse("Quiz not found", { status: 404 });
+    }
+
     const attempt = await prisma.quizAttempt.create({
       data: {
         quizId,
         userId: dbUser.id,
         userAnswers,
-        score: parseInt(score),
+        score: Number(score),
       },
     });
 

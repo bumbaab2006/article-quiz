@@ -10,8 +10,19 @@ export async function POST(req: Request) {
 
     const { articleId } = await req.json();
 
-    const article = await prisma.article.findUnique({
-      where: { id: articleId },
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    if (!dbUser) {
+      return new NextResponse("User not found", { status: 404 });
+    }
+
+    const article = await prisma.article.findFirst({
+      where: {
+        id: articleId,
+        userId: dbUser.id,
+      },
     });
 
     if (!article || !article.summary) {

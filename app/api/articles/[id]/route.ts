@@ -12,12 +12,26 @@ export async function GET(
 
     const { id } = await params;
 
-    const article = await prisma.article.findUnique({
-      where: { id },
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+
+    if (!dbUser) {
+      return new NextResponse("User not found", { status: 404 });
+    }
+
+    const article = await prisma.article.findFirst({
+      where: {
+        id,
+        userId: dbUser.id,
+      },
       include: {
         quizzes: {
           include: {
             attempts: {
+              where: {
+                userId: dbUser.id,
+              },
               orderBy: { createdAt: "desc" },
             },
           },
@@ -29,6 +43,7 @@ export async function GET(
 
     return NextResponse.json(article);
   } catch (err) {
+    console.error("ARTICLE_DETAIL_ERROR", err);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

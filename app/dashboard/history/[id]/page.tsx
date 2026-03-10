@@ -3,10 +3,29 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+type QuizAttempt = {
+  id: string;
+  createdAt: string;
+  score: number;
+};
+
+type QuizHistory = {
+  id: string;
+  attempts: QuizAttempt[];
+};
+
+type ArticleDetail = {
+  id: string;
+  title: string;
+  content: string;
+  summary: string;
+  quizzes: QuizHistory[];
+};
+
 export default function HistoryDetailPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ArticleDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Email states
@@ -15,39 +34,64 @@ export default function HistoryDetailPage() {
 
   useEffect(() => {
     fetch(`/api/articles/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setData(data);
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Нийтлэлийг ачаалж чадсангүй");
+        }
+
+        return (await res.json()) as ArticleDetail;
+      })
+      .then((article) => {
+        setData(article);
         setLoading(false);
+      })
+      .catch((error) => {
+        console.error(error);
+        alert("Нийтлэлийг ачаалж чадсангүй");
+        router.push("/dashboard");
       });
-  }, [id]);
+  }, [id, router]);
 
   const handleSendEmail = async () => {
     if (!userEmail) return alert("Имэйл хаягаа оруулна уу");
     setIsEmailSending(true);
     try {
-      const res = await fetch(
-        "https://bumbayar.app.n8n.cloud/webhook/send-email",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: userEmail,
-            summary: data.summary,
-            title: data.title,
-          }),
-        }
-      );
-      if (res.ok) alert("Имэйл амжилттай илгээгдлээ!");
-      else alert("Илгээхэд алдаа гарлаа");
+      const res = await fetch("/api/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: userEmail,
+          summary: data.summary,
+          title: data.title,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = (await res.json().catch(() => null)) as
+          | { error?: string; missingKeys?: string[] }
+          | null;
+
+        const details =
+          errorData?.missingKeys && errorData.missingKeys.length > 0
+            ? `: ${errorData.missingKeys.join(", ")}`
+            : "";
+
+        throw new Error(
+          `${errorData?.error ?? "Илгээхэд алдаа гарлаа"}${details}`
+        );
+      }
+
+      alert("Имэйл амжилттай илгээгдлээ!");
     } catch (err) {
       console.error(err);
+      alert(err instanceof Error ? err.message : "Холболтын алдаа гарлаа");
     } finally {
       setIsEmailSending(false);
     }
   };
 
   if (loading) return <div className="p-8 text-gray-500">Ачаалж байна...</div>;
+  if (!data) return null;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -106,12 +150,12 @@ export default function HistoryDetailPage() {
         </h3>
         {data.quizzes?.length > 0 ? (
           <div className="space-y-4">
-            {data.quizzes.map((quiz: any) => (
+            {data.quizzes.map((quiz) => (
               <div
                 key={quiz.id}
                 className="border-t pt-4 first:border-t-0 first:pt-0"
               >
-                {quiz.attempts.map((attempt: any) => (
+                {quiz.attempts.map((attempt) => (
                   <div
                     key={attempt.id}
                     className="flex justify-between items-center py-2"

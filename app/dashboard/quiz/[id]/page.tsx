@@ -27,7 +27,7 @@ export default function QuizPage() {
         if (!res.ok) throw new Error("Quiz-ийг ачаалж чадсангүй");
         const data = await res.json();
         setQuestions(data.questions as Question[]);
-      } catch (err) {
+      } catch {
         alert("Алдаа гарлаа");
         router.push("/dashboard");
       } finally {
